@@ -3,6 +3,23 @@
 **Status:** Draft  
 **Last Updated:** March 2026
 
+### Related Documents
+
+| Document | Path |
+|---|---|
+| System Architecture Overview | `architecture/system-overview.md` |
+| Consolidated Data Model | `architecture/data-model.md` |
+| Auth Architecture | `architecture/auth-architecture.md` |
+| Layer 1: Ingestion Server PRD | `PRD-Layer1-Ingestion-Server.md` |
+| Layer 2: Data Storage PRD | `PRD-Layer2-Data-Storage.md` |
+| Layer 3: Angular Dashboard PRD | `PRD-Layer3-Angular-Dashboard.md` |
+| Ghost Fleet Simulator PRD | `PRD-Ghost-Fleet-Simulator.md` |
+| Billing & Subscriptions PRD | `PRD_Billing.md` |
+| Customer Management PRD | `PRD_CustomerManagement.md` |
+| Hardware Lifecycle PRD | `PRD_HardwareLifecycle.md` |
+| Support & Ticketing PRD | `PRD_Support.md` |
+| Onboarding PRD | `PRD-Onboarding.md` |
+
 ---
 
 ## 1. Executive Summary
@@ -108,41 +125,23 @@ Features explicitly **excluded from MVP**: Remote DTC clearing, fuel analytics, 
 
 ### 7.2 Layer 1 — Ingestion (The Listener)
 
-- **Tech:** Node.js `net` module
 - **Hosting:** Railway.app (TCP port, e.g. 5050)
-- **Role:** Accepts raw TCP connections from 4G OBD2 devices. Parses the hex protocol, including Login Packet acknowledgment and Data Packet decoding.
+- **Role:** Accepts raw TCP connections from 4G OBD2 devices, parses the hex protocol (Login/Data/Heartbeat packets), and decodes binary payloads.
 - **Output:** Pushes clean JSON records to Supabase via the REST API.
 
-**Example hex parsing logic:**
-- Byte 14 = `0x0C` → RPM value
-- Protocol varies by device manufacturer; the parser is keyed to the Alibaba device protocol doc.
-
-**Key principle:** The parser must be hardware-agnostic at the output layer — it writes normalized JSON regardless of whether the source is a real device or the Ghost Fleet simulator (see Section 9).
+**Key principle:** The parser must be hardware-agnostic at the output layer — it writes normalized JSON regardless of whether the source is a real device or the Ghost Fleet simulator (see Section 9). Detailed protocol specification is in `PRD-Layer1-Ingestion-Server.md`.
 
 ### 7.3 Layer 2 — Data Storage (Supabase)
 
 - **Database:** PostgreSQL (Supabase free tier for MVP)
-- **Primary Table:** `telemetry_logs`
-
-```sql
-CREATE TABLE telemetry_logs (
-  id          BIGSERIAL PRIMARY KEY,
-  vehicle_id  UUID NOT NULL,
-  lat         DECIMAL(10, 7),
-  lng         DECIMAL(10, 7),
-  temp        FLOAT,           -- Coolant temp (°C)
-  voltage     FLOAT,           -- Battery voltage (V)
-  rpm         INTEGER,
-  dtc_codes   TEXT[],          -- Array of active fault codes
-  timestamp   TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
+- **Primary Table:** `telemetry_logs` (vehicle_id, lat, lng, temp, voltage, rpm, dtc_codes, timestamp)
 - **Realtime:** Postgres Changes enabled on `telemetry_logs` so the DB pushes new rows directly to subscribed Angular clients via WebSocket.
+
+Full schema, RLS policies, and indexing strategy are in `PRD-Layer2-Data-Storage.md`.
 
 ### 7.4 Layer 3 — Frontend Dashboard (Angular)
 
-- **Framework:** Angular 19/20
+- **Framework:** Angular 19+
 - **State Management:** Angular Signals (`signal` for current vehicle data, `computed` for derived health scores)
 - **Component Library:** Angular Material (admin UI) + Leaflet.js (fleet map)
 
@@ -156,7 +155,7 @@ CREATE TABLE telemetry_logs (
 | `DtcAlertComponent` | Toast/banner notifications with plain-English DTC translations |
 | `BatteryStatusComponent` | Voltage trend line with predictive "will fail tonight" logic |
 
-**Performance:** Use RxJS `bufferTime` on high-frequency update streams to prevent UI stuttering during rapid telemetry bursts.
+**Performance:** Use RxJS `bufferTime` on high-frequency update streams to prevent UI stuttering during rapid telemetry bursts. Full component architecture is in `PRD-Layer3-Angular-Dashboard.md`.
 
 ---
 
@@ -201,75 +200,7 @@ Ghost Script → [raw hex bytes over TCP] → Parser → [clean JSON] → Supaba
 
 The ghost script's output is **raw binary/hex**, not JSON. JSON is the *parser's output*. This boundary is intentional — it means the parser is fully exercised during simulation, not bypassed.
 
-### Example: What the Ghost Script Sends (over TCP)
-
-```python
-import socket, struct, time
-
-def build_data_packet(lat, lng, speed, voltage, coolant_temp, rpm):
-    """
-    Constructs a fake hex packet mimicking the Alibaba OBD2 device protocol.
-    Byte layout (simplified example — verify against your device's protocol doc):
-      [0-1]   Start bytes:        0x78 0x78
-      [2]     Packet length
-      [3]     Protocol number:    0x22 (data packet type)
-      [4-7]   Latitude (int32, degrees * 1,000,000)
-      [8-11]  Longitude (int32, degrees * 1,000,000)
-      [12]    Speed (uint8, km/h)
-      [13-14] Voltage (uint16, millivolts)
-      [15]    Coolant temp (uint8, °C)
-      [16-17] RPM (uint16)
-      [18-19] CRC (uint16)
-      [20-21] Stop bytes: 0x0D 0x0A
-    """
-    lat_int  = int(lat * 1_000_000)
-    lng_int  = int(lng * 1_000_000)
-    volt_mv  = int(voltage * 1000)   # e.g. 12.6V → 12600
-    temp_b   = int(coolant_temp)     # e.g. 92°C → 92
-    rpm_int  = int(rpm)
-
-    payload = struct.pack('>iiBHBH', lat_int, lng_int, speed, volt_mv, temp_b, rpm_int)
-    length  = len(payload) + 3       # protocol byte + payload + CRC
-    header  = struct.pack('BBB', 0x78, 0x78, length) + b'\x22' + payload
-    crc     = sum(header[2:]) & 0xFFFF
-    packet  = header + struct.pack('>H', crc) + b'\x0D\x0A'
-    return packet
-
-def run_ghost(host, port):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((host, port))
-        print(f"Ghost connected to {host}:{port}")
-        while True:
-            pkt = build_data_packet(
-                lat=37.7749, lng=-122.4194,
-                speed=35, voltage=12.6,
-                coolant_temp=92, rpm=1450
-            )
-            s.sendall(pkt)
-            print(f"Sent: {pkt.hex()}")   # e.g. "787822023a8b6cf8a2c3a023126018005ba00d0a"
-            time.sleep(5)
-
-run_ghost('your-railway-host.railway.app', 5050)
-```
-
-### Example: What the Parser Produces (written to Supabase)
-
-After the Node.js parser receives and decodes the packet above, *it* produces the JSON:
-
-```json
-{
-  "vehicle_id": "ghost-vehicle-01",
-  "lat": 37.7749,
-  "lng": -122.4194,
-  "temp": 92,
-  "voltage": 12.6,
-  "rpm": 1450,
-  "dtc_codes": [],
-  "timestamp": "2026-03-29T14:32:00Z"
-}
-```
-
-> **Note:** The exact byte offsets in the ghost script must match your specific device's protocol document. Request the protocol spec from your Alibaba supplier before finalizing the parser. The layout above is illustrative.
+Full protocol byte specifications and simulator configuration details are in `PRD-Ghost-Fleet-Simulator.md`.
 
 ---
 
