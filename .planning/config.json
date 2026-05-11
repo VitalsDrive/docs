@@ -3,7 +3,9 @@
   "commit_docs": false,
   "granularity": "standard",
   "planning": {
-    "sub_repos": ["docs", "packages/dashboard", "packages/parser", "packages/simulator", "packages/supabase", "packages/auth-service"]
+    "sub_repos": [
+      "docs"
+    ]
   },
   "workflow": {
     "research": true,

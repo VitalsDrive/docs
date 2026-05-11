@@ -25,8 +25,8 @@ VitalsDrive is a brownfield project with existing infrastructure (parser, dashbo
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: Parser binary protocol decoding and Supabase write path
-- [ ] 01-02: Simulator integration and disconnect/reconnect handling
+- [ ] 01-01-PLAN.md - Parser refactor: modular split, FMC003 IO IDs, Pino logging, Supabase queue, /health endpoint, Jest tests
+- [ ] 01-02-PLAN.md - Simulator FMC003 IO ID update + RECONNECT_TEST scenario + end-to-end Supabase smoke checkpoint
 
 ### Phase 2: Auth & Fleet Management
 **Goal**: Users can authenticate via Auth0, manage their fleet, and register vehicles
