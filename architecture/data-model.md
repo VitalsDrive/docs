@@ -212,7 +212,7 @@ Source: `PRD_HardwareLifecycle.md`
 | id | UUID | PRIMARY KEY | Device record identifier |
 | imei | TEXT | UNIQUE, NOT NULL | 15-digit hardware identifier |
 | iccid | TEXT | | SIM card identifier |
-| model | TEXT | | e.g. "SinoTrack ST-906" |
+| model | TEXT | | e.g. "Teltonika FMC003" |
 | firmware_ver | TEXT | | Device firmware version |
 | status | TEXT | DEFAULT 'in_stock' | in_stock, provisioned, shipped, active, offline, faulty, returned, or retired |
 | account_id | UUID | FK → accounts | Null until assigned |

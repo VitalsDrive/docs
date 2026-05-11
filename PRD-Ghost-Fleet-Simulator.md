@@ -94,99 +94,85 @@ TCP Port 5050              Railway.app                      PostgreSQL        We
 
 ---
 
-## 4. Protocol Specification
+## 4. Protocol Specification — Teltonika Codec 8 Extended
 
 ### 4.1 Protocol Overview
 
-The protocol is derived from the SinoTrack/Micodus 4G OBD2 device family commonly sourced from Alibaba. All multi-byte integers are **big-endian (network byte order)**.
+The protocol is Teltonika Codec 8 Extended, used by the FMC003 and other Teltonika OBD2 GPS devices. All multi-byte integers are **big-endian (network byte order)**.
 
-**Packet Types:**
+**Handshake Flow:**
+1. Device connects, sends IMEI as raw 15-digit ASCII bytes (no framing)
+2. Server responds with single byte `0x01`
+3. Device starts sending AVL data packets
 
-| Protocol Byte | Packet Type | Description |
-|---|---|---|
-| `0x01` | Login Packet | Device registration/authentication |
-| `0x22` | Data Packet | Periodic telemetry transmission |
-| `0x23` | Heartbeat Packet | Keep-alive/connection verification |
-
-### 4.2 Login Packet (0x01)
-
-Sent by device upon TCP connection establishment.
+**Data Packet Structure:**
 
 | Offset | Size | Field | Type | Description |
 |---|---|---|---|---|
-| 0 | 2 | Start Bytes | uint16 | `0x78 0x78` |
-| 2 | 1 | Packet Length | uint8 | Total bytes from offset 3 to CRC end |
-| 3 | 1 | Protocol Number | uint8 | `0x01` |
-| 4 | 10 | Device ID | ASCII | Left-padded with `0x00` |
-| 14 | 4 | Software Version | uint32 | Device firmware version |
-| 18 | 4 | Hardware Version | uint32 | Device hardware version |
-| 22 | 4 | Timestamp | uint32 | Unix timestamp of device clock |
-| 26 | 2 | CRC | uint16 | Modbus CRC-16 of bytes [2..25] |
-| 28 | 2 | Stop Bytes | uint16 | `0x0D 0x0A` |
+| 0..3 | Preamble | 4 | `0x00 0x00 0x00 0x00` |
+| 4..7 | Data length | 4 | uint32 BE | Payload size (codec through CRC) |
+| 8 | Codec ID | 1 | `0x8E` (Codec 8 Extended) |
+| 9..10 | Num records | 2 | uint16 BE | Number of AVL records |
+| ... | AVL records | variable | See §4.2 |
+| N..N+1 | Num records | 2 | uint16 BE | Repeated count |
+| N+2..N+3 | CRC-16 | 2 | CRC-16-IBM | From codec ID through second num records |
 
-**Login ACK (server → device):**
-- Protocol byte: `0x81` (login ack)
-- Result byte: `0x00` (success)
-- Format: `0x78 0x78 0x05 0x81 0x00 [CRC] 0x0D 0x0A`
+**Server ACK:** After each data packet, server sends 4-byte big-endian record count (e.g. `0x00000001`).
 
-### 4.3 Data Packet (0x22)
+### 4.2 AVL Data Record
 
-Primary telemetry packet sent at configurable intervals (default: 5 seconds).
+Each record contains fixed GPS/motion fields followed by variable IO elements.
 
-| Offset | Size | Field | Type | Description |
+**Fixed Part (28 bytes):**
+
+| Offset | Field | Size | Type | Description |
 |---|---|---|---|---|
-| 0 | 2 | Start Bytes | uint16 | `0x78 0x78` |
-| 2 | 1 | Packet Length | uint8 | Total bytes from offset 3 to CRC end |
-| 3 | 1 | Protocol Number | uint8 | `0x22` |
-| 4 | 4 | Latitude | int32 | Degrees × 1,000,000 (signed) |
-| 8 | 4 | Longitude | int32 | Degrees × 1,000,000 (signed) |
-| 12 | 1 | Speed | uint8 | km/h (0-255) |
-| 13 | 2 | Voltage | uint16 | Millivolts (e.g., 12600 = 12.6V) |
-| 15 | 1 | Coolant Temp | uint8 | Celsius (-40 to +125) |
-| 16 | 2 | RPM | uint16 | Engine RPM (0-9999) |
-| 18 | 1 | DTC Count | uint8 | Number of active DTC codes (0-8) |
-| 19 | N | DTC Codes | N×2 | 2 bytes per DTC code (see §4.6) |
-| 19+N | 2 | CRC | uint16 | Modbus CRC-16 of bytes [2..18+N] |
-| 21+N | 2 | Stop Bytes | uint16 | `0x0D 0x0A` |
+| 0..7 | Timestamp | 8 | uint64 BE | Milliseconds since epoch |
+| 8 | Priority | 1 | uint8 | Event priority |
+| 9..12 | Longitude | 4 | int32 BE | Degrees × 10^7 |
+| 13..16 | Latitude | 4 | int32 BE | Degrees × 10^7 |
+| 17..18 | Altitude | 2 | int16 BE | Meters |
+| 19..20 | Angle | 2 | uint16 BE | Heading 0-360° |
+| 21..22 | Satellites | 2 | uint16 BE | GPS satellite count |
+| 23..24 | Speed | 2 | uint16 BE | km/h × 10 |
+| 25..26 | Event ID | 2 | uint16 BE | Event identifier |
+| 27..28 | IO element count | 2 | uint16 BE | Number of IO elements |
 
-**Constraints:**
-- Minimum size: 22 bytes (no DTC codes)
-- Maximum size: 40 bytes (8 DTC codes)
+**IO Elements (variable):**
 
-### 4.4 Heartbeat Packet (0x23)
+Each IO element has: ID (uint16 BE) + Type (uint8) + Value (variable, big-endian).
 
-Lightweight keep-alive sent between data packets to maintain TCP connection.
+IO Type encoding: 1 = uint8, 2 = uint16, 3 = uint32, 4 = uint64, 5 = float, 6 = double.
 
-| Offset | Size | Field | Type | Description |
-|---|---|---|---|---|
-| 0 | 2 | Start Bytes | uint16 | `0x78 0x78` |
-| 2 | 1 | Packet Length | uint8 | `0x05` |
-| 3 | 1 | Protocol Number | uint8 | `0x23` |
-| 4 | 1 | Status | uint8 | `0x00` = normal, `0x01` = low battery |
-| 5 | 2 | CRC | uint16 | Modbus CRC-16 of bytes [2..4] |
-| 7 | 2 | Stop Bytes | uint16 | `0x0D 0x0A` |
+**Required IO Elements for MVP:**
 
-### 4.5 CRC Calculation
+| IO ID | Name | Type | Size | Unit | Encoding |
+|---|---|---|---|---|---|
+| 5 | Speed | 1 (uint8) | 1 | km/h | Raw km/h |
+| 67 | Battery Voltage | 2 (uint16) | 2 | mV | e.g. 12600 = 12.6V |
+| 128 | Engine Temperature | 2 (uint16) | 2 | °C×10 | e.g. 850 = 85.0°C |
+| 179 | Engine RPM | 3 (uint32) | 4 | RPM | Raw RPM |
 
-The protocol uses **Modbus CRC-16**:
-- Polynomial: `0x8005` (reflected: `0xA001`)
-- Initial value: `0xFFFF`
-- No XORout
-- Calculated over bytes `[2..(length-3)]` (everything after length byte, before CRC bytes)
+### 4.3 CRC-16 Calculation
 
-### 4.6 DTC Code Format
+CRC-16-IBM (polynomial `0x1021`, initial value `0x0000`) computed over bytes from codec ID (byte at offset 8) through the second num records field (inclusive).
 
-DTCs follow the standard OBD-II format:
-- First byte: Code type (`0x00` = Generic, `0x01` = Manufacturer-specific)
-- Second byte: High nibble = digit 1, Low nibble = digit 2
-- Third byte: High nibble = digit 3, Low nibble = digit 4
+### 4.4 DTC Codes
 
-**Example DTC: P0301**
-- Byte 1: `0x00` (Powertrain, Generic)
-- Byte 2: `0x03` → P, 0
-- Byte 3: `0x01` → 3, 0 → Combined: P0301
+DTC codes are included as string values in IO element IO ID 240 (DTC List), type 0xFF (variable-length string), or encoded as multiple uint32 IO elements. For MVP, DTC codes may be omitted from the simulator — they are optional and can be added later when the real device behavior is confirmed.
 
-**Common DTCs for Simulation:**
+### 4.5 Packet Building Example (Codec 8 Extended)
+
+One AVL record with 4 IO elements:
+- Preamble: `0x00 0x00 0x00 0x00` (4 bytes)
+- Length: `0x00 0x00 0x00 0x3C` (60 bytes payload, example)
+- Codec: `0x8E` (1 byte)
+- Num records: `0x00 0x01` (2 bytes)
+- AVL record: 28 bytes fixed + IO elements (2+1+1 + 2+1+2 + 2+1+2 + 2+1+4 = 34 bytes IO = 62 bytes total)
+- Num records repeat: `0x00 0x01`
+- CRC-16: computed
+
+**Common DTCs for Simulation (when DTC support is added):**
 
 | Code | Description |
 |---|---|
@@ -382,7 +368,7 @@ When real devices are available, the simulator should be able to run alongside t
 
 | # | Question | Impact | Status |
 |---|---|---|---|
-| O-1 | Has the official SinoTrack protocol specification been received from the supplier? | Critical | Pending |
+| O-1 | Has the official Teltonika Codec 8 Extended protocol specification been validated against real FMC003 device capture? | Critical | Pending |
 | O-2 | Does the device wait for login ACK before sending data? | High | Unknown |
 | O-3 | Is DTC data included in every data packet or on separate request? | Medium | Unknown |
 | O-4 | Is the voltage field raw ADC reading or already calibrated (mV)? | Medium | Unknown |

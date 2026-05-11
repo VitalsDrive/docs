@@ -79,15 +79,15 @@ This layer is intentionally decoupled from the hardware — it must handle malfo
 | F-2.3.6 | Extract speed (if available in protocol) | Medium | For fleet map velocity display |
 | F-2.3.7 | Extract DTC codes (if available in protocol) | Medium | For alert system |
 | F-2.3.8 | Validate packet checksum/CRC | Critical | Discard invalid packets; log error |
-| F-2.3.9 | Handle packet framing (start/stop bytes: 0x78 0x78 ... 0x0D 0x0A) | Critical | Per Alibaba protocol |
+| F-2.3.9 | Handle packet framing (0x00000000 preamble, length, CRC-16) | Critical | Per Teltonika Codec 8 Extended |
 | F-2.3.10 | Handle multi-packet bursts (device sends rapid succession) | Medium | Buffer and process sequentially |
 
 ### 2.4 Device Protocol Support
 
 | ID | Requirement | Priority | Notes |
 |---|---|---|---|
-| F-2.4.1 | Support Alibaba SinoTrack protocol (primary) | Critical | First device batch from Alibaba |
-| F-2.4.2 | Support Micodus protocol (if hardware varies) | Medium | Secondary supplier |
+| F-2.4.1 | Support Teltonika Codec 8 Extended protocol (primary) | Critical | Teltonika FMC003 device |
+| F-2.4.2 | Support additional Teltonika codecs if hardware varies | Medium | Codec 8 (non-Extended) fallback |
 | F-2.4.3 | Detect device manufacturer from login packet | High | Switch parser logic accordingly |
 | F-2.4.4 | Log unsupported protocol types; do not crash | Medium | Alert on new protocol detection |
 | F-2.4.5 | Document protocol variations for future extensibility | Low | ASCII protocol notes in codebase |
@@ -169,58 +169,72 @@ The server uses Node.js `net` module for TCP socket management. It maintains an 
 3. Device sends data packets → parse, validate, normalize, push to Supabase
 4. Device disconnects → clean up session, log event
 
-### 4.2 Packet Parsing Requirements
+### 4.2 Packet Parsing Requirements — Teltonika Codec 8 Extended
 
 The server must implement a state machine per connection:
 
 ```
 CONNECTED → WAIT_LOGIN → AUTHENTICATED → DATA_ACTIVE
              │              │                    │
-         recv 0x01      send 0x81 ACK      recv 0x22/0x23
+         recv IMEI      send 0x01 ACK      recv 0x8E packets
 ```
 
-**Packet Framing:** All packets follow the SinoTrack binary format:
-- Start bytes: `0x78 0x78`
-- Length byte (position 2)
-- Protocol byte: `0x01` (Login), `0x22` (Data), `0x23` (Heartbeat)
-- CRC-16 checksum (last 2 bytes before stop)
-- Stop bytes: `0x0D 0x0A`
+**Handshake:** Device sends IMEI as raw 15-digit ASCII bytes. Server responds with single byte `0x01`. Device then sends AVL data packets.
 
-**Login Packet (0x01) — Alibaba SinoTrack:**
+**Packet Framing — Codec 8 Extended:**
 
 | Offset | Field | Size | Notes |
 |---|---|---|---|
-| 0 | Start | 2 | `0x78 0x78` |
-| 2 | Length | 1 | Typically `0x19` (25) |
-| 3 | Protocol | 1 | `0x01` |
-| 4..15 | IMEI | 15 | ASCII string |
-| 16..17 | Software Ver | 2 | e.g. "01" |
-| 18..19 | Hardware Ver | 2 | e.g. "01" |
+| 0..3 | Preamble | 4 | `0x00 0x00 0x00 0x00` |
+| 4..7 | Data length | 4 | uint32 big-endian, payload size |
+| 8 | Codec ID | 1 | `0x8E` (Codec 8 Extended) |
+| 9..10 | Num records | 2 | uint16 big-endian |
+| ... | AVL data records | variable | See record layout below |
+| N..N+1 | Num records | 2 | Repeated (uint16 BE) |
+| N+2..N+3 | CRC-16 | 2 | CRC from codec ID through second num records |
 
-**Login ACK Response (server → device):**
-- Protocol byte: `0x81` (login ack)
-- Result byte: `0x00` (success)
-- Format: `0x78 0x78 0x05 0x81 0x00 [CRC] 0x0D 0x0A`
-
-**Data Packet (0x22) — Alibaba SinoTrack:**
+**AVL Data Record Layout:**
 
 | Offset | Field | Size | Type | Notes |
 |---|---|---|---|---|
-| 4..7 | Latitude | 4 | int32 | Degrees × 1,000,000 |
-| 8..11 | Longitude | 4 | int32 | Degrees × 1,000,000 |
-| 12 | Speed | 1 | uint8 | km/h |
-| 13 | Direction | 1 | uint8 | 0-360 degrees |
-| 14 | GPS Valid | 1 | uint8 | 0=invalid, 1=valid |
-| 15 | GSM Signal | 1 | uint8 | 0-31 |
-| 16 | Battery Voltage | 2 | uint16 | mV |
-| 17 | External Voltage | 2 | uint16 | mV (optional) |
-| 18 | Temp | 1 | int8 | °C (signed) |
-| 19 | RPM High | 1 | uint8 | RPM / 256 |
-| 20 | RPM Low | 1 | uint8 | RPM % 256 |
-| 21 | DTC Count | 1 | uint8 | Number of DTCs |
-| 22..n | DTC Codes | n | bytes | (if count > 0) |
+| 0..7 | Timestamp | 8 | uint64 BE | Milliseconds since epoch |
+| 8 | Priority | 1 | uint8 | Event priority |
+| 9..12 | Longitude | 4 | int32 BE | Degrees × 10^7 |
+| 13..16 | Latitude | 4 | int32 BE | Degrees × 10^7 |
+| 17..18 | Altitude | 2 | int16 BE | Meters |
+| 19..20 | Angle | 2 | uint16 BE | Heading 0-360 |
+| 21..22 | Satellites | 2 | uint16 BE | GPS satellite count |
+| 23..24 | Speed | 2 | uint16 BE | km/h × 10 |
+| 25..26 | Event ID | 2 | uint16 BE | Event identifier |
+| 27..28 | IO element count | 2 | uint16 BE | Number of IO elements |
+| 29..n | IO Elements | variable | See IO element layout below |
 
-**RPM Calculation:** `rpm = (rpmHigh * 256 + rpmLow) / 4`
+**IO Element Layout:**
+
+| Field | Size | Notes |
+|---|---|---|
+| IO ID | 2 | uint16 BE, element identifier |
+| IO Type | 1 | uint8: 1=8-bit, 2=16-bit, 3=32-bit, 4=64-bit, 5=float, 6=double |
+| IO Value | 1/2/4/8 | Variable length based on type, big-endian |
+
+**Required IO Elements for MVP:**
+
+| IO ID | Name | Type | Unit | Notes |
+|---|---|---|---|---|
+| 5 | Speed | 1 (uint8) | km/h | Redundant with AVL speed field |
+| 67 | Battery Voltage | 2 (uint16 BE) | mV | Divide by 1000 for volts |
+| 128 | Engine Temperature | 2 (uint16 BE) | °C×10 | Divide by 10 for °C |
+| 179 | Engine RPM | 3 (uint32 BE) | RPM | Raw RPM value |
+
+**Server ACK (after each packet):** Send 4-byte big-endian record count confirming receipt. Example: `0x00000001` for 1 record.
+
+**CRC-16 Calculation:** CRC-16-IBM (polynomial 0x1021, initial value 0x0000) computed over bytes from codec ID (offset 8) through the second num records field. Reject packets with CRC mismatch.
+
+**RPM:** Read directly from IO ID 179 (uint32 BE).
+
+**Voltage:** Read from IO ID 67 (uint16 BE, mV) — divide by 1000 for display.
+
+**Temperature:** Read from IO ID 128 (uint16 BE, °C×10) — divide by 10 for °C.
 
 ### 4.3 Error Handling Strategy
 
@@ -403,7 +417,7 @@ Structured JSON logging (Pino). Key events: server start, device connect/disconn
 
 | # | Question | Impact | Owner | Status |
 |---|---|---|---|---|
-| O-1 | Protocol document verification: Has the SinoTrack/Micodus protocol spec been received from the Alibaba supplier? | Critical | Hardware | Pending |
+| O-1 | Protocol document verification: Has the Teltonika Codec 8 Extended spec been validated against real FMC003 device? | Critical | Hardware | Pending |
 | O-2 | SMS command format: What is the exact SMS syntax to configure the device's server IP and port? | Critical | Hardware | Pending |
 | O-3 | Login packet timing: Does the device wait for ACK before sending data packets? | High | Protocol | Unknown |
 | O-4 | Multi-device authentication: Can the same IMEI connect from multiple sockets simultaneously? | Medium | Protocol | Unknown |
@@ -427,7 +441,7 @@ Structured JSON logging (Pino). Key events: server start, device connect/disconn
 | Dependency | Owner | Due Date | Blocker |
 |---|---|---|---|
 | Alibaba protocol specification | Hardware team | Before Phase 3 | Parser finalization |
-| SinoTrack device (1 unit for testing) | Hardware team | Before Phase 3 | Real device testing |
+| Teltonika FMC003 device (1 unit for testing) | Hardware team | Before Phase 3 | Real device testing |
 | Supabase project created | Backend | Week 1 | Deployment |
 | Railway project configured | Backend | Week 1 | Deployment |
 

@@ -70,7 +70,7 @@ This document provides a comprehensive architectural overview of the VitalsDrive
 │                                                                                      │
 │  ┌────────────────────────────────────────────────────────────────────────────────┐ │
 │  │                              Layer 0: Simulation                                 │ │
-│  │  • Generates raw binary/hex packets per SinoTrack protocol                     │ │
+│  │  • Generates raw binary/hex packets per Teltonika Codec 8 Extended protocol     │ │
 │  │  • Supports multi-vehicle scenarios (up to 50 simultaneous)                    │ │
 │  │  • Enables deterministic edge case testing                                     │ │
 │  └────────────────────────────────────────────────────────────────────────────────┘ │
@@ -80,12 +80,12 @@ This document provides a comprehensive architectural overview of the VitalsDrive
 │  ┌────────────────────────────────────────────────────────────────────────────────┐ │
 │  │                            Layer 1: TCP Ingestion Server                         │ │
 │  │  • Accept TCP connections on port 5050                                         │ │
-│  │  • Parse Login packets (0x01), Data packets (0x22), Heartbeat (0x23)          │ │
+│  │  • Parse Teltonika Codec 8 Extended (0x8E) packets with AVL records            │ │
 │  │  • Validate CRC-16 checksums                                                   │ │
 │  │  • Map device IMEI to vehicle_id via Supabase lookup                           │ │
 │  │  • Push decoded JSON to Supabase REST API                                      │ │
 │  │  • Queue outgoing messages during Supabase outage                              │ │
-│  │  • Protocols: Alibaba SinoTrack (primary), Micodus (secondary)                 │ │
+│  │  • Protocol: Teltonika Codec 8 Extended (AVL with OBD PIDs)                    │ │
 │  └────────────────────────────────────────────────────────────────────────────────┘ │
 │                                           │                                             │
 │                                           │ decoded JSON (REST API)                      │
@@ -126,7 +126,7 @@ This document provides a comprehensive architectural overview of the VitalsDrive
 ```
 Vehicle Engine → OBD2 GPS Device → 4G TCP Network → Node.js Parser → Supabase PostgreSQL
      │                │                                    │                    │
-  CAN bus         0x78 0x78...                          Parse +              Store +
+  CAN bus         Codec 8 Extended                    Parse +              Store +
   telemetry       raw hex                               Validate             Publish via WS
 ```
 
@@ -135,7 +135,7 @@ Vehicle Engine → OBD2 GPS Device → 4G TCP Network → Node.js Parser → Sup
 | Stage | Input | Output | Transformation |
 |---|---|---|---|
 | Vehicle Sensors | Analog/digital signals | CAN bus data | Vehicle ECUs generate OBD-II PIDs |
-| OBD2 Device | CAN bus frames | Binary protocol packet | Device firmware encodes to SinoTrack format |
+| OBD2 Device | CAN bus frames | Binary protocol packet | Device firmware encodes to Teltonika Codec 8 Extended format |
 | Network | Binary packet | TCP stream | 4G module transmits over cellular |
 | Parser (L1) | Raw hex bytes | Normalized JSON | Protocol decoding, unit conversion, IMEI→vehicle_id mapping |
 | Supabase (L2) | JSON record | Database row + WebSocket event | INSERT trigger fires alert generation |
@@ -154,10 +154,10 @@ Vehicle Engine → OBD2 GPS Device → 4G TCP Network → Node.js Parser → Sup
 │  Config        │───▶│  Packet         │───▶│  TCP           │
 │  Manager       │    │  Builder        │    │  Client       │
 │                │    │                 │    │               │
-│  • YAML config │    │  • Login (0x01) │    │  • connect()  │
-│  • Env vars    │    │  • Data (0x22)  │    │  • send()     │
-│  • CLI flags   │    │  • Heartbeat    │    │  • reconnect  │
-│  • Scenarios   │    │    (0x23)       │    │               │
+│  • YAML config │    │  • IMEI login   │    │  • connect()  │
+│  • Env vars    │    │  • Codec 0x8E   │    │  • send()     │
+│  • CLI flags   │    │  • AVL records  │    │  • reconnect  │
+│  • Scenarios   │    │  • OBD PIDs     │    │               │
 └────────────────┘    └────────────────┘    └───────┬────────┘
                                                     │ TCP Port 5050
                                                     ▼

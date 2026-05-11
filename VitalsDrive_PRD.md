@@ -99,7 +99,7 @@ Features explicitly **excluded from MVP**: Remote DTC clearing, fuel analytics, 
 | **Total COGS** | **$5.30** | |
 | **Gross Profit** | **$29.70** | **~85% gross margin** |
 
-> **Hardware note:** Test units sourced from Alibaba (SinoTrack/Micodus) at ~$25/unit. Bulk pricing drops to ~$22/unit. The device is provided to customers as part of a 12-month commitment.
+> **Hardware note:** Test units: Teltonika FMC003 at ~$50/unit. The device is provided to customers as part of a 12-month commitment.
 
 ---
 
@@ -168,7 +168,7 @@ Full schema, RLS policies, and indexing strategy are in `PRD-Layer2-Data-Storage
 | Frontend Hosting | Vercel | $0 (Hobby) | ~$20/mo |
 | Backend / Database | Supabase | $0 (Free Tier) | ~$25/mo |
 | TCP Ingestion Server | Railway.app | $5 free credit | ~$5/mo (usage-based) |
-| Hardware (test unit) | Alibaba (SinoTrack/Micodus) | ~$25 (1 unit) | ~$22/unit (bulk) |
+| Hardware (test unit) | Teltonika FMC003 | ~$50 (1 unit) | ~$40/unit (bulk) |
 | SIM Connectivity | Telnyx / Monogoto | $1/SIM + $0.06/MB | ~$1.50/mo total |
 | **Total OpEx** | | **~$0/month** | **~$7/mo per vehicle** |
 
@@ -238,7 +238,7 @@ Full protocol byte specifications and simulator configuration details are in `PR
 
 | Task | Detail |
 |---|---|
-| Hardware procurement | Order 1 SinoTrack/Micodus unit from Alibaba + 1 Telnyx SIM |
+| Hardware procurement | Order 1 Teltonika FMC003 unit + configure via SMS to point to Railway server |
 | Device configuration | SMS command to set Railway server IP/port on the device |
 | Live validation | Drive the test vehicle; confirm dashboard updates in real time |
 | Protocol refinement | Validate hex parser against real device packets; adjust offsets as needed |
