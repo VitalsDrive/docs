@@ -6,7 +6,7 @@ VitalsDrive is a brownfield project with existing infrastructure (parser, dashbo
 
 ## Phases
 
-- [ ] **Phase 1: Telemetry Pipeline** - Parser reliably ingests and stores OBD2 data to Supabase
+- [x] **Phase 1: Telemetry Pipeline** - Parser reliably ingests and stores OBD2 data to Supabase
 - [ ] **Phase 2: Auth & Fleet Management** - User auth, vehicle registration, and fleet organization
 - [ ] **Phase 3: Live Fleet Dashboard** - Real-time map and vehicle health overview
 - [ ] **Phase 4: Alert System** - DTC, battery, and coolant alerts with notifications
@@ -22,11 +22,12 @@ VitalsDrive is a brownfield project with existing infrastructure (parser, dashbo
   1. Simulator connects to parser and telemetry appears in Supabase
   2. Parser handles device disconnect/reconnect without losing data
   3. Telemetry records contain all required fields (vehicle_id, GPS, RPM, temp, voltage, DTC)
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md - Parser refactor: modular split, FMC003 IO IDs, Pino logging, Supabase queue, /health endpoint, Jest tests
-- [ ] 01-02-PLAN.md - Simulator FMC003 IO ID update + RECONNECT_TEST scenario + end-to-end Supabase smoke checkpoint
+- [x] 01-01-PLAN.md - Parser refactor: modular split, FMC003 IO IDs, Pino logging, Supabase queue, /health endpoint, Jest tests
+- [x] 01-02-PLAN.md - Simulator FMC003 IO ID update + RECONNECT_TEST scenario + end-to-end Supabase smoke checkpoint
+- [x] 01-03-PLAN.md - Protocol correctness gap closure: CRC-16/IBM, uint8 numRecords, correct framing offsets, WR-01/02/03 warnings
 
 ### Phase 2: Auth & Fleet Management
 **Goal**: Users can authenticate via Auth0, manage their fleet, and register vehicles
@@ -92,7 +93,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Telemetry Pipeline | 0/2 | Not started | - |
+| 1. Telemetry Pipeline | 3/3 | Complete | 2026-05-12 |
 | 2. Auth & Fleet Mgmt | 0/2 | Not started | - |
 | 3. Live Fleet Dashboard | 0/2 | Not started | - |
 | 4. Alert System | 0/2 | Not started | - |

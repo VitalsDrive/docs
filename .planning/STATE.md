@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-last_updated: "2026-05-11T20:22:15.194Z"
+status: phase_complete
+last_updated: "2026-05-12T00:00:00.000Z"
 progress:
   total_phases: 5
-  completed_phases: 0
-  total_plans: 2
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 3
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -19,12 +19,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-11)
 
 **Core value:** Prevent expensive vehicle failures — DTC codes, dead batteries, and overheating engines — before they cause breakdowns. Fleet Health, Simplified.
-**Current focus:** Phase 1: Telemetry Pipeline
+**Current focus:** Phase 2: Auth & Fleet Management (next)
+**Last completed:** Phase 1 — Telemetry Pipeline (2026-05-12)
+**Decisions:** FMC003 IO IDs corrected (7040/7044/7045/7059/7038); TelemetryWriter uses injected SupabaseClient; jest.config.js rootDir override for tests/; D-07: dtc_codes=[] deferred to Phase 4; CRC-16/IBM (0xA001 reflected) replaces CCITT 0x1021; known test vector [0x8E,0x00,0x01]=0xEBA1 (plan stated 0x4B37 was wrong)
 
 ## Active Phase
 
-**Phase:** 1 (Telemetry Pipeline)
-**Status:** Ready to execute
+**Phase:** 1 (Telemetry Pipeline) — COMPLETE
+**Status:** Verified — all 5 INGEST requirements satisfied, e2e smoke test passed
+**Next:** Phase 2 (Auth & Fleet Management)
 **Roadmap:** .planning/ROADMAP.md
 
 ## Sub-Repositories
