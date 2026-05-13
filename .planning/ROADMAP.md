@@ -38,11 +38,15 @@ Plans:
   2. Auth0 token exchanged for internal JWT via auth service
   3. Session persists across browser refresh
   4. Unauthenticated users are redirected to login
-**Plans**: 2 plans
+**Plans**: 6 plans
 
 Plans:
-- [ ] 02-01: Auth0 integration and JWT exchange service
-- [ ] 02-02: Route guards and session persistence
+- [ ] 02-01-PLAN.md — Migration 009: resolve schema blockers (users FK, fleet_members TEXT, org_invites, vehicles.nickname) + supabase db push [BLOCKING]
+- [ ] 02-02-PLAN.md — Auth-service: wire user provisioning into exchange, fix JWT payload (sub+email only), GET /auth/me, fix roles hardcode
+- [ ] 02-03-PLAN.md — Dashboard auth core: fix isAuthenticated signal, localStorage persistence, interceptor 401 retry, remove allowlistGuard, env vars
+- [ ] 02-04-PLAN.md — VehicleService + Fleet Management page (/fleet-management): vehicle CRUD with soft-delete, card grid, fleet switcher
+- [ ] 02-05-PLAN.md — Onboarding Step 3 (vehicle, skippable) + invite link generator (/settings/invite) with org_invites token flow
+- [ ] 02-06-PLAN.md — Invite redemption: /join?token= route validates token, inserts fleet_members row, marks single-use tokens consumed (D-22)
 
 ### Phase 3: Live Fleet Dashboard
 **Goal**: Users can see their fleet on a real-time map with vehicle health status
@@ -94,7 +98,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Telemetry Pipeline | 3/3 | Complete | 2026-05-12 |
-| 2. Auth & Fleet Mgmt | 0/2 | Not started | - |
+| 2. Auth & Fleet Mgmt | 0/6 | Planned | - |
 | 3. Live Fleet Dashboard | 0/2 | Not started | - |
 | 4. Alert System | 0/2 | Not started | - |
 | 5. Device Onboarding | 0/1 | Not started | - |

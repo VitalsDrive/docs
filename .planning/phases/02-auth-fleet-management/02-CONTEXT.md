@@ -47,7 +47,7 @@ Phase 2 delivers the identity layer end-to-end: users can authenticate via Auth0
 - **D-19:** Owner generates an invite link backed by a signed token stored in an `org_invites` Supabase table (token, org_id, created_by, expires_at, type, used_at).
 - **D-20:** Owner chooses invite type at generation: **single-use** (invalidated after first click) or **multi-use** (anyone with link can join within the window). Both expire after 7 days.
 - **D-21:** Owner copies the link and sends it via any channel (WhatsApp, email, Slack). Optional "Send via email" button using Resend — wire the email delivery if Resend is configured, otherwise link-only mode.
-- **D-22:** When invitee clicks the link: Auth0 registration → auto-join org with `owner` role for MVP (role field is stored but not enforced beyond owner check for now).
+- **D-22:** When invitee clicks the link: Auth0 registration → auto-join org with the **role pre-selected by the inviter at invite generation** (default: `viewer`). Role options: `viewer`, `driver`, `fleet_admin`. The `org_invites` table stores the target role; redemption reads it and sets `fleet_members.role` accordingly. Invitees never join as `owner` via link. Owner can promote roles manually via Settings later.
 
 ### Vehicle Registration
 - **D-23:** Vehicle fields: nickname/label (required), make, model, year, license plate, VIN. No IMEI — device assignment is Phase 5.
