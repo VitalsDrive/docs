@@ -59,8 +59,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: Fleet map component with Leaflet and Supabase Realtime subscriptions
-- [ ] 03-02: Vehicle health cards with score and alert indicators
+- [ ] 03-01-PLAN.md — Wave 0 test stubs + Migration 012 (telemetry_logs RLS auth.jwt()->>'sub' fix + get_latest_telemetry RPC) + VehicleService resource() refactor replacing loadVehicles/loadInitialTelemetry with effect() bridge [FLEET-01, FLEET-02]
+- [ ] 03-02-PLAN.md — FleetMapComponent stale state (4-state getVehicleState, initialFitDone guard, tooltip) + Dashboard/VehicleGrid loading/empty states + ShellComponent connection pill + toast wiring [FLEET-01, FLEET-02, FLEET-03]
 
 ### Phase 4: Alert System
 **Goal**: System detects and displays DTC, battery, and coolant alerts for each vehicle
@@ -99,6 +99,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Telemetry Pipeline | 3/3 | Complete | 2026-05-12 |
 | 2. Auth & Fleet Mgmt | 0/6 | Planned | - |
-| 3. Live Fleet Dashboard | 0/2 | Not started | - |
+| 3. Live Fleet Dashboard | 0/2 | Planned | - |
 | 4. Alert System | 0/2 | Not started | - |
 | 5. Device Onboarding | 0/1 | Not started | - |
