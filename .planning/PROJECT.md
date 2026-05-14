@@ -83,4 +83,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-11 after /gsd-new-project initialization*
+*Last updated: 2026-05-14 — Phase 3 (Live Fleet Dashboard) complete: resource()-driven VehicleService, real-time Leaflet fleet map with stale-state markers, dashboard loading/empty states, connection pill + reconnect toast. Migration 012 (telemetry RLS fix + get_latest_telemetry RPC) deployed. FLEET-01/02/03 validated. 5 items pending human browser UAT (03-HUMAN-UAT.md).*
