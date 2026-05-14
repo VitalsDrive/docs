@@ -7,8 +7,8 @@ VitalsDrive is a brownfield project with existing infrastructure (parser, dashbo
 ## Phases
 
 - [x] **Phase 1: Telemetry Pipeline** - Parser reliably ingests and stores OBD2 data to Supabase
-- [ ] **Phase 2: Auth & Fleet Management** - User auth, vehicle registration, and fleet organization
-- [ ] **Phase 3: Live Fleet Dashboard** - Real-time map and vehicle health overview
+- [x] **Phase 2: Auth & Fleet Management** - User auth, vehicle registration, and fleet organization
+- [x] **Phase 3: Live Fleet Dashboard** - Real-time map and vehicle health overview
 - [ ] **Phase 4: Alert System** - DTC, battery, and coolant alerts with notifications
 - [ ] **Phase 5: Device Onboarding** - New device setup and fleet expansion flow
 
@@ -98,7 +98,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Telemetry Pipeline | 3/3 | Complete | 2026-05-12 |
-| 2. Auth & Fleet Mgmt | 0/6 | Planned | - |
+| 2. Auth & Fleet Mgmt | 6/6 | Complete | 2026-05-14 |
 | 3. Live Fleet Dashboard | 2/2 | Complete | 2026-05-14 |
 | 4. Alert System | 0/2 | Not started | - |
 | 5. Device Onboarding | 0/1 | Not started | - |
