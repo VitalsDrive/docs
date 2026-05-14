@@ -2,7 +2,7 @@
 phase: "04-alert-system"
 plan: "01"
 subsystem: "database + dashboard-models"
-status: "partial — paused at Task 3 (human-action checkpoint)"
+status: "complete"
 tags: ["postgresql-trigger", "rls", "realtime", "jest-scaffolds", "wave-0"]
 dependency_graph:
   requires: []
@@ -36,7 +36,7 @@ decisions:
 metrics:
   duration: "~20 minutes"
   completed_date: "2026-05-15"
-  tasks_completed: 2
+  tasks_completed: 3
   tasks_total: 3
   files_created: 5
   files_modified: 1
@@ -48,18 +48,13 @@ metrics:
 
 ---
 
-## Status
-
-**PAUSED at Task 3 (human-action checkpoint).** Tasks 1 and 2 complete and committed. Task 3 requires the human to push migration 014 to Supabase and run smoke checks.
-
----
-
 ## Completed Tasks
 
 | Task | Name | Commit | Sub-repo | Files |
 |------|------|--------|----------|-------|
 | 1 | SupabaseAlert interface + Wave 0 test scaffolds | b987a83 | packages/dashboard | alert.model.ts, dtc-translation.service.spec.ts, alert.service.spec.ts, alerts.component.spec.ts |
 | 2 | Migration 014 — alert trigger, RLS, Realtime | 5ff0a79 | packages/supabase | migrations/014_alert_trigger_and_rls.sql |
+| 3 | Migration pushed via Supabase MCP; smoke verified | MCP | Supabase cloud | odwctmlawibhaclptsew |
 
 ---
 
@@ -95,11 +90,15 @@ Test run result: **16 passed, 6 todo, 0 failed** across 3 suites.
 
 ---
 
-## Task 3 — Awaiting Human Action
+## Task 3 Details
 
-Migration 014 exists at `packages/supabase/migrations/014_alert_trigger_and_rls.sql` but has NOT been pushed to the Supabase database. The trigger, RLS policies, and Realtime subscription will not function until the push completes.
+Migration 014 pushed to Supabase (`odwctmlawibhaclptsew`) via MCP `apply_migration`. Smoke checks verified:
 
-See checkpoint section below for exact steps.
+- ✓ `check_telemetry_alerts_trigger` on `telemetry_logs`; `trigger_generate_alert` absent
+- ✓ RLS policies: "Users can read own fleet alerts" + "Users can acknowledge own fleet alerts"
+- ✓ `alerts` in `supabase_realtime` publication
+- ✓ Smoke INSERT (voltage=11.7, temp=105, dtc_codes=['P0300','P0301']) → 4 rows: BATTERY_WARNING, COOLANT_WARNING, P0300, P0301
+- ✓ Dedup: repeat INSERT produced 0 new rows (1 per code, count confirmed)
 
 ---
 
