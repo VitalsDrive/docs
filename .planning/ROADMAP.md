@@ -74,8 +74,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: Alert detection logic and DTC code lookup (plain-English mapping)
-- [ ] 04-02: Alert display components and threshold monitoring UI
+- [ ] 04-01-PLAN.md — Wave 0 test scaffolds + SupabaseAlert model + Migration 014 (check_telemetry_alerts trigger, alerts RLS, realtime publication) + [BLOCKING] supabase db push [DTC-01, DTC-02, BATT-01, COOL-01]
+- [ ] 04-02-PLAN.md — Supabase-backed AlertService (resource + Realtime + acknowledge), /alerts paginated 7-day history rewrite, header bell badge, severity-aware map markers, VehicleService in-memory alert removal [DTC-02, DTC-03, BATT-02, BATT-03, COOL-02, COOL-03]
 
 ### Phase 5: Device Onboarding
 **Goal**: New OBD2 devices can be registered and associated with a fleet through a guided flow
